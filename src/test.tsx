@@ -1,7 +1,594 @@
-import React, { useState, useEffect, useRef } from 'react';
+// import { useState } from 'react';
+// import { Mic, MicOff, Square, RotateCcw, AlertCircle } from 'lucide-react';
+
+// // Speech Recognition Types
+// declare global {
+//   interface Window {
+//     SpeechRecognition: any;
+//     webkitSpeechRecognition: any;
+//   }
+// }
+
+// interface SpeechRecognitionEvent {
+//   resultIndex: number;
+//   results: {
+//     [key: number]: {
+//       isFinal: boolean;
+//       [key: number]: {
+//         transcript: string;
+//       };
+//     };
+//     length: number;
+//   };
+// }
+
+// interface SpeechRecognitionErrorEvent {
+//   error: string;
+// }
+
+// // Speech to Text Component
+// const SpeechToTextInput = ({ 
+//   onTranscriptChange, 
+//   placeholder, 
+//   value,
+//   onClear,
+//   disabled = false
+// }) => {
+//   const [isListening, setIsListening] = useState(false);
+//   const [interimTranscript, setInterimTranscript] = useState('');
+//   const [error, setError] = useState('');
+//   const [recognition, setRecognition] = useState(null);
+
+//   const initializeRecognition = () => {
+//     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+//     if (SpeechRecognition) {
+//       const recognitionInstance = new SpeechRecognition();
+//       recognitionInstance.continuous = true;
+//       recognitionInstance.interimResults = true;
+//       recognitionInstance.lang = 'en-US';
+//       recognitionInstance.maxAlternatives = 1;
+      
+//       recognitionInstance.onresult = (event) => {
+//         let finalTranscript = '';
+//         let interim = '';
+        
+//         for (let i = event.resultIndex; i < event.results.length; i++) {
+//           const result = event.results[i];
+//           const transcript = result[0].transcript;
+          
+//           if (result.isFinal) {
+//             finalTranscript += transcript + ' ';
+//           } else {
+//             interim = transcript;
+//           }
+//         }
+        
+//         if (finalTranscript) {
+//           onTranscriptChange(value + finalTranscript);
+//         }
+//         setInterimTranscript(interim);
+//         setError('');
+//       };
+      
+//       recognitionInstance.onerror = (event) => {
+//         switch (event.error) {
+//           case 'no-speech':
+//             setError('No speech detected. Please try speaking again.');
+//             break;
+//           case 'audio-capture':
+//             setError('Microphone not available. Please check your microphone.');
+//             break;
+//           case 'not-allowed':
+//             setError('Microphone access denied. Please allow microphone access.');
+//             break;
+//           case 'network':
+//             setError('Network error. Please check your internet connection.');
+//             break;
+//           default:
+//             setError(`Recognition error: ${event.error}`);
+//         }
+//         setIsListening(false);
+//       };
+      
+//       recognitionInstance.onend = () => {
+//         setIsListening(false);
+//         setInterimTranscript('');
+//       };
+      
+//       recognitionInstance.onstart = () => {
+//         setIsListening(true);
+//         setError('');
+//       };
+      
+//       return recognitionInstance;
+//     }
+//     return null;
+//   };
+
+//   const startRecognition = () => {
+//     if (disabled) return;
+    
+//     const recognitionInstance = recognition || initializeRecognition();
+//     if (recognitionInstance) {
+//       setRecognition(recognitionInstance);
+//       try {
+//         recognitionInstance.start();
+//       } catch (err) {
+//         setError('Failed to start speech recognition. Please try again.');
+//       }
+//     } else {
+//       setError('Speech recognition not supported in this browser.');
+//     }
+//   };
+
+//   const stopRecognition = () => {
+//     if (recognition) {
+//       recognition.stop();
+//     }
+//     setIsListening(false);
+//     setInterimTranscript('');
+//   };
+
+//   const toggleListening = () => {
+//     if (isListening) {
+//       stopRecognition();
+//     } else {
+//       startRecognition();
+//     }
+//   };
+
+//   const clearTranscript = () => {
+//     if (onClear) {
+//       onClear();
+//     }
+//     setInterimTranscript('');
+//     setError('');
+//   };
+
+//   return (
+//     <div className="space-y-4">
+//       <div className="flex gap-4">
+//         <button
+//           onClick={toggleListening}
+//           disabled={disabled}
+//           className={`flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+//             isListening
+//               ? 'bg-gradient-to-r from-red-500 to-red-600 animate-pulse'
+//               : 'bg-gradient-to-r from-red-400 to-teal-400 hover:scale-105'
+//           }`}
+//         >
+//           {isListening ? (
+//             <>
+//               <Square className="w-5 h-5" />
+//               <span>Stop Recording</span>
+//             </>
+//           ) : (
+//             <>
+//               <Mic className="w-5 h-5" />
+//               <span>Start Recording</span>
+//             </>
+//           )}
+//         </button>
+//         <button
+//           onClick={clearTranscript}
+//           className="flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-gray-400 to-gray-500 text-white font-medium hover:scale-105 transition-all duration-300"
+//         >
+//           <RotateCcw className="w-5 h-5" />
+//           Clear
+//         </button>
+//       </div>
+
+//       {error && (
+//         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+//           <p className="text-red-700 text-sm flex items-center">
+//             <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+//             {error}
+//           </p>
+//         </div>
+//       )}
+
+//       <div className={`p-4 rounded-lg min-h-16 flex items-center transition-all duration-300 ${
+//         value || interimTranscript 
+//           ? 'bg-white border-2 border-green-400 text-gray-800' 
+//           : 'bg-purple-50 border-2 border-dashed border-purple-300 text-gray-500 justify-center'
+//       }`}>
+//         {value || interimTranscript || placeholder}
+//         {interimTranscript && (
+//           <span className="text-blue-600 italic bg-blue-50 px-1 rounded ml-2">
+//             {interimTranscript}
+//           </span>
+//         )}
+//         {isListening && !interimTranscript && !value && (
+//           <span className="text-gray-400 animate-pulse ml-2">●</span>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+// // Main AI Creative Commerce Studio Component
+// const AiCreativeCommerceStudio = () => {
+//   // State management
+//   const [showMainApp, setShowMainApp] = useState(false);
+//   const [apiKey, setApiKey] = useState('');
+//   const [transcript, setTranscript] = useState('');
+//   const [enhanceTranscript, setEnhanceTranscript] = useState('');
+//   const [modifyTranscript, setModifyTranscript] = useState('');
+//   const [isLoading, setIsLoading] = useState(false);
+//   const [progress, setProgress] = useState(0);
+//   const [timeRemaining, setTimeRemaining] = useState(15);
+//   const [currentDesignUrl, setCurrentDesignUrl] = useState('');
+//   const [currentPrompt, setCurrentPrompt] = useState('');
+//   const [designInfo, setDesignInfo] = useState({
+//     style: '-',
+//     dimensions: '-',
+//     qualityScore: '-'
+//   });
+//   const [errorMessage, setErrorMessage] = useState('');
+//   const [successMessage, setSuccessMessage] = useState('');
+//   const [loadingStep, setLoadingStep] = useState(1);
+
+//   // API functions
+//   const validateApiKey = (key) => {
+//     setApiKey(key);
+//     if (key) {
+//       showSuccess('API key configured successfully!');
+//     }
+//   };
+
+//   const showError = (message) => {
+//     setErrorMessage(message);
+//     setTimeout(() => setErrorMessage(''), 5000);
+//   };
+
+//   const showSuccess = (message) => {
+//     setSuccessMessage(message);
+//     setTimeout(() => setSuccessMessage(''), 3000);
+//   };
+
+//   // Loading simulation
+//   const showLoading = () => {
+//     setIsLoading(true);
+//     setProgress(0);
+//     setTimeRemaining(15);
+//     setLoadingStep(1);
+
+//     const interval = setInterval(() => {
+//       setProgress(prev => {
+//         const newProgress = prev + 6.67; // 100/15 steps
+//         if (newProgress >= 100) {
+//           clearInterval(interval);
+//           setTimeout(() => {
+//             setIsLoading(false);
+//             simulateDesignCompletion();
+//           }, 500);
+//           return 100;
+//         }
+//         return newProgress;
+//       });
+
+//       setTimeRemaining(prev => Math.max(0, prev - 1));
+      
+//       setLoadingStep(prev => {
+//         if (progress < 25) return 1;
+//         if (progress < 50) return 2;
+//         if (progress < 75) return 3;
+//         return 4;
+//       });
+//     }, 1000);
+//   };
+
+//   const simulateDesignCompletion = () => {
+//     // Simulate successful design generation
+//     const placeholderImage = `data:image/svg+xml;base64,${btoa(`
+//       <svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+//         <rect width="300" height="300" fill="#667eea"/>
+//         <circle cx="150" cy="120" r="50" fill="white"/>
+//         <polygon points="100,180 150,220 200,180" fill="white"/>
+//         <text x="150" y="260" font-family="Arial" font-size="16" fill="white" text-anchor="middle">AI Generated Design</text>
+//       </svg>
+//     `)}`;
+    
+//     setCurrentDesignUrl(placeholderImage);
+//     setDesignInfo({
+//       style: 'Modern Minimalist',
+//       dimensions: '300x300px',
+//       qualityScore: '9.2/10'
+//     });
+//   };
+
+//   const generateDesign = async () => {
+//     if (!apiKey) {
+//       showError('Please enter your Gemini API key first.');
+//       return;
+//     }
+    
+//     if (!transcript) {
+//       showError('Please provide your design idea first.');
+//       return;
+//     }
+    
+//     // Build prompt
+//     let prompt = `Create a high-quality, commercial-ready design based on this idea: "${transcript}"`;
+//     if (enhanceTranscript) {
+//       prompt += ` with these style preferences: "${enhanceTranscript}"`;
+//     }
+//     prompt += '. Make it suitable for print-on-demand products, especially t-shirts. Focus on clean, scalable vector-style artwork.';
+    
+//     setCurrentPrompt(prompt);
+//     await callGeminiAPI(prompt);
+//   };
+
+//   const regenerateDesign = async () => {
+//     if (!currentPrompt) {
+//       showError('No design to regenerate.');
+//       return;
+//     }
+    
+//     const newPrompt = currentPrompt + ' Generate a completely different variation with a fresh creative approach.';
+//     await callGeminiAPI(newPrompt);
+//   };
+
+//   const applyModification = async (modification) => {
+//     if (!currentPrompt) {
+//       showError('No design to modify.');
+//       return;
+//     }
+    
+//     const modifyPrompt = currentPrompt + ` Apply this modification: "${modification}". Keep the core design concept but implement the requested changes.`;
+//     await callGeminiAPI(modifyPrompt);
+//   };
+
+//   const callGeminiAPI = async (prompt) => {
+//     showLoading();
+    
+//     try {
+//       // Simulate API call delay
+//       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+//       // In real implementation, you'd call the actual Gemini API
+//       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+//         method: 'POST',
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({
+//           contents: [{
+//             parts: [{
+//               text: `${prompt} Please provide a detailed description of the design you would create, including style, colors, composition, and elements. Format your response as if describing an image that could be generated.`
+//             }]
+//           }]
+//         })
+//       });
+      
+//       if (!response.ok) {
+//         throw new Error(`API Error: ${response.status}`);
+//       }
+      
+//       const data = await response.json();
+//       // Process the response and generate design
+      
+//     } catch (error) {
+//       console.error('API call failed:', error);
+//       setIsLoading(false);
+//       showError('Failed to generate design. Please check your API key and try again.');
+//     }
+//   };
+
+//   const enableModify = () => {
+//     showSuccess('Voice modification enabled. Start recording to modify your design!');
+//   };
+
+//   const demoOnTshirt = () => {
+//     showSuccess('T-shirt mockup feature coming soon!');
+//   };
+
+//   // Handle modification when transcript changes
+//   const handleModifyTranscriptChange = (newTranscript) => {
+//     setModifyTranscript(newTranscript);
+//     if (currentDesignUrl && newTranscript.trim()) {
+//       applyModification(newTranscript);
+//     }
+//   };
+
+//   if (!showMainApp) {
+//     return (
+//       <div className="min-h-screen flex flex-col justify-center items-center text-center text-white p-8 relative overflow-hidden bg-gradient-to-br from-purple-600 via-blue-600 to-purple-700">
+//         {/* Animated background elements */}
+//         <div className="absolute inset-0 opacity-10">
+//           <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full animate-pulse"></div>
+//           <div className="absolute bottom-20 right-20 w-24 h-24 bg-yellow-300 rounded-full animate-bounce"></div>
+//           <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-pink-300 rounded-full animate-ping"></div>
+//         </div>
+
+//         <div className="relative z-10">
+//           <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent animate-pulse">
+//             🎨 AI Creative Commerce Studio
+//           </h1>
+//           <p className="text-xl md:text-2xl mb-2 opacity-90">From Voice Ideas to Products</p>
+//           <p className="text-lg md:text-xl mb-12 opacity-80">in 60 seconds</p>
+//           <button 
+//             onClick={() => setShowMainApp(true)}
+//             className="bg-gradient-to-r from-red-500 to-teal-400 text-white px-8 py-4 text-xl rounded-full hover:scale-105 transform transition-all duration-300 shadow-2xl hover:shadow-3xl animate-bounce"
+//           >
+//             🎤 Start Creating Now
+//           </button>
+//           <p className="absolute bottom-8 text-sm opacity-70">✨ Powered by Nano Banana AI</p>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-gray-50">
+//       {/* Header */}
+//       <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4">
+//         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+//           <h2 className="text-xl font-bold">🎨 AI Creative Studio</h2>
+//           <div className="flex items-center gap-4">
+//             <div className="flex items-center gap-2 bg-white bg-opacity-20 px-4 py-2 rounded-full backdrop-blur-md">
+//               <span>🔑 Gemini API Key:</span>
+//               <input
+//                 type="password"
+//                 className="bg-white bg-opacity-90 text-gray-800 px-3 py-1 rounded-full border-none outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+//                 placeholder="Enter your Gemini API key"
+//                 value={apiKey}
+//                 onChange={(e) => validateApiKey(e.target.value)}
+//               />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Messages */}
+//       {errorMessage && (
+//         <div className="bg-red-100 border border-red-300 text-red-700 p-4 m-4 rounded-lg">
+//           {errorMessage}
+//         </div>
+//       )}
+//       {successMessage && (
+//         <div className="bg-green-100 border border-green-300 text-green-700 p-4 m-4 rounded-lg">
+//           {successMessage}
+//         </div>
+//       )}
+
+//       {/* Main Content */}
+//       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+//         {/* Input Panel */}
+//         <div className="bg-white rounded-3xl p-8 shadow-xl">
+//           {/* Step 1: Voice Idea */}
+//           <div className="mb-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-l-4 border-purple-500">
+//             <h3 className="text-lg font-semibold mb-4 text-gray-700">Step 1: 🎤 Voice Your Idea</h3>
+//             <SpeechToTextInput
+//               onTranscriptChange={setTranscript}
+//               placeholder='Speak your creative idea... (e.g., "Create a minimalist mountain logo for outdoor apparel")'
+//               value={transcript}
+//               onClear={() => setTranscript('')}
+//             />
+//           </div>
+
+//           {/* Step 2: AI Enhancement */}
+//           <div className="mb-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-l-4 border-purple-500">
+//             <h3 className="text-lg font-semibold mb-4 text-gray-700">Step 2: 🤖 AI Enhancement</h3>
+//             <SpeechToTextInput
+//               onTranscriptChange={setEnhanceTranscript}
+//               placeholder='Add style details... (e.g., "Make it vintage style with earth tones")'
+//               value={enhanceTranscript}
+//               onClear={() => setEnhanceTranscript('')}
+//             />
+//             <button
+//               onClick={generateDesign}
+//               disabled={!transcript || isLoading}
+//               className="w-full mt-4 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all duration-300"
+//             >
+//               🍌 Generate with Nano Banana
+//             </button>
+//           </div>
+
+//           {/* Step 3: Voice Modifications */}
+//           <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-l-4 border-purple-500">
+//             <h3 className="text-lg font-semibold mb-4 text-gray-700">Step 3: 🔧 Voice Modifications</h3>
+//             <SpeechToTextInput
+//               onTranscriptChange={handleModifyTranscriptChange}
+//               placeholder='Request changes... (e.g., "Make it bigger", "Change colors to blue")'
+//               value={modifyTranscript}
+//               onClear={() => setModifyTranscript('')}
+//               disabled={!currentDesignUrl}
+//             />
+//           </div>
+//         </div>
+
+//         {/* Preview Panel */}
+//         <div className="bg-white rounded-3xl p-8 shadow-xl">
+//           <h3 className="text-xl font-bold mb-6 text-gray-800">🎨 Live Preview</h3>
+          
+//           {/* Loading State */}
+//           {isLoading && (
+//             <div className="text-center p-8 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl mb-6">
+//               <div className="text-6xl mb-4 animate-bounce">🍌</div>
+//               <h3 className="text-xl font-bold mb-4">Nano Banana Generating...</h3>
+//               <div className="bg-gray-200 h-3 rounded-full mb-2 overflow-hidden">
+//                 <div 
+//                   className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full transition-all duration-500"
+//                   style={{ width: `${progress}%` }}
+//                 ></div>
+//               </div>
+//               <p className="mb-4">{Math.round(progress)}% Complete</p>
+//               <div className="text-left space-y-2 mb-4">
+//                 <div className={`p-2 ${loadingStep >= 1 ? 'text-green-600 opacity-100' : 'opacity-50'}`}>
+//                   ✨ Analyzing your creative vision...
+//                 </div>
+//                 <div className={`p-2 ${loadingStep >= 2 ? 'text-green-600 opacity-100' : 'opacity-50'}`}>
+//                   🎨 Generating unique design...
+//                 </div>
+//                 <div className={`p-2 ${loadingStep >= 3 ? 'text-green-600 opacity-100' : 'opacity-50'}`}>
+//                   🔧 Optimizing for print quality...
+//                 </div>
+//                 <div className={`p-2 ${loadingStep >= 4 ? 'text-green-600 opacity-100' : 'opacity-50'}`}>
+//                   🎯 Finalizing commercial viability...
+//                 </div>
+//               </div>
+//               <p>Estimated completion: <span className="font-bold">{timeRemaining}</span> seconds</p>
+//             </div>
+//           )}
+
+//           {/* Design Preview */}
+//           <div className={`rounded-2xl min-h-80 flex items-center justify-center mb-6 transition-all duration-300 ${
+//             currentDesignUrl 
+//               ? 'bg-white shadow-lg' 
+//               : 'bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300'
+//           }`}>
+//             {currentDesignUrl ? (
+//               <img src={currentDesignUrl} alt="Generated Design" className="max-w-full max-h-80 rounded-lg shadow-md" />
+//             ) : (
+//               <p className="text-gray-500">Your generated design will appear here</p>
+//             )}
+//           </div>
+
+//           {/* Design Info */}
+//           {currentDesignUrl && (
+//             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+//               <p className="mb-2"><strong>🎨 Style:</strong> <span>{designInfo.style}</span></p>
+//               <p className="mb-2"><strong>📐 Dimensions:</strong> <span>{designInfo.dimensions}</span></p>
+//               <p><strong>🎯 Print Quality Score:</strong> <span>{designInfo.qualityScore}</span></p>
+//             </div>
+//           )}
+
+//           {/* Action Buttons */}
+//           {currentDesignUrl && (
+//             <div className="flex flex-col sm:flex-row gap-4">
+//               <button
+//                 onClick={regenerateDesign}
+//                 className="flex-1 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-full hover:scale-105 transition-all duration-300"
+//               >
+//                 🔄 Regenerate
+//               </button>
+//               <button
+//                 onClick={enableModify}
+//                 className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-full hover:scale-105 transition-all duration-300"
+//               >
+//                 ✏️ Voice Edit
+//               </button>
+//               <button
+//                 onClick={demoOnTshirt}
+//                 className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium rounded-full hover:scale-105 transition-all duration-300"
+//               >
+//                 👕 Demo on T-shirt
+//               </button>
+//             </div>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default AiCreativeCommerceStudio;
+import { useState } from 'react';
 import { Mic, MicOff, Square, RotateCcw, AlertCircle } from 'lucide-react';
 
-// TypeScript declarations for Speech Recognition
+// Speech Recognition Types
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -26,34 +613,30 @@ interface SpeechRecognitionErrorEvent {
   error: string;
 }
 
-const App = () => {
+// Speech to Text Component
+const SpeechToTextInput = ({ 
+  onTranscriptChange, 
+  placeholder, 
+  value,
+  onClear,
+  disabled = false
+}) => {
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState('');
-  const [isSupported, setIsSupported] = useState(false);
-  const recognitionRef = useRef<any>(null);
-  const isListeningRef = useRef(false);
+  const [recognition, setRecognition] = useState(null);
 
-  useEffect(() => {
-    // Check for browser support
+  const initializeRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (SpeechRecognition) {
-      setIsSupported(true);
+      const recognitionInstance = new SpeechRecognition();
+      recognitionInstance.continuous = true;
+      recognitionInstance.interimResults = true;
+      recognitionInstance.lang = 'en-US';
+      recognitionInstance.maxAlternatives = 1;
       
-      // Create recognition instance
-      const recognition = new SpeechRecognition();
-      
-      // Configure recognition settings
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-      recognition.maxAlternatives = 1;
-      
-      // Handle results
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        console.log('Speech recognition result:', event);
+      recognitionInstance.onresult = (event) => {
         let finalTranscript = '';
         let interim = '';
         
@@ -64,21 +647,18 @@ const App = () => {
           if (result.isFinal) {
             finalTranscript += transcript + ' ';
           } else {
-            interim += transcript;
+            interim = transcript;
           }
         }
         
         if (finalTranscript) {
-          setTranscript(prev => prev + finalTranscript);
+          onTranscriptChange(value + finalTranscript);
         }
         setInterimTranscript(interim);
-        setError(''); // Clear any previous errors
+        setError('');
       };
       
-      // Handle errors
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error:', event.error);
-        
+      recognitionInstance.onerror = (event) => {
         switch (event.error) {
           case 'no-speech':
             setError('No speech detected. Please try speaking again.');
@@ -95,86 +675,44 @@ const App = () => {
           default:
             setError(`Recognition error: ${event.error}`);
         }
-        
-        // Don't auto-restart on permission errors
-        if (event.error !== 'not-allowed' && event.error !== 'audio-capture') {
-          if (isListeningRef.current) {
-            setTimeout(() => {
-              startRecognition();
-            }, 1000);
-          }
-        } else {
-          setIsListening(false);
-          isListeningRef.current = false;
-        }
+        setIsListening(false);
       };
       
-      // Handle end event
-      recognition.onend = () => {
-        console.log('Recognition ended, isListening:', isListeningRef.current);
-        
-        // Only restart if we should still be listening
-        if (isListeningRef.current) {
-          setTimeout(() => {
-            startRecognition();
-          }, 100);
-        } else {
-          setIsListening(false);
-        }
+      recognitionInstance.onend = () => {
+        setIsListening(false);
+        setInterimTranscript('');
       };
       
-      // Handle start event
-      recognition.onstart = () => {
-        console.log('Recognition started');
+      recognitionInstance.onstart = () => {
         setIsListening(true);
         setError('');
       };
       
-      recognitionRef.current = recognition;
-    } else {
-      setIsSupported(false);
-      setError('Speech recognition not supported in this browser.');
+      return recognitionInstance;
     }
-    
-    // Cleanup function
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          console.log('Cleanup error:', e);
-        }
-      }
-    };
-  }, []);
+    return null;
+  };
 
   const startRecognition = () => {
-    if (recognitionRef.current && !isListening) {
+    if (disabled) return;
+    
+    const recognitionInstance = recognition || initializeRecognition();
+    if (recognitionInstance) {
+      setRecognition(recognitionInstance);
       try {
-        console.log('Starting recognition...');
-        isListeningRef.current = true;
-        recognitionRef.current.start();
-        setError('');
+        recognitionInstance.start();
       } catch (err) {
-        console.error('Error starting recognition:', err);
         setError('Failed to start speech recognition. Please try again.');
-        isListeningRef.current = false;
       }
+    } else {
+      setError('Speech recognition not supported in this browser.');
     }
   };
 
   const stopRecognition = () => {
-    console.log('Stopping recognition...');
-    isListeningRef.current = false;
-    
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (err) {
-        console.error('Error stopping recognition:', err);
-      }
+    if (recognition) {
+      recognition.stop();
     }
-    
     setIsListening(false);
     setInterimTranscript('');
   };
@@ -187,206 +725,71 @@ const App = () => {
     }
   };
 
-  const resetTranscript = () => {
-    setTranscript('');
+  const clearTranscript = () => {
+    if (onClear) {
+      onClear();
+    }
     setInterimTranscript('');
     setError('');
   };
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(transcript);
-      alert('Text copied to clipboard!');
-    } catch (err) {
-      // Fallback for browsers that don't support clipboard API
-      const textArea = document.createElement('textarea');
-      textArea.value = transcript;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('Text copied to clipboard!');
-    }
-  };
-
-  if (!isSupported) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">
-            Speech Recognition Not Supported
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Your browser doesn't support speech recognition. Please try:
-          </p>
-          <ul className="text-left text-gray-600 text-sm space-y-1">
-            <li>• Use Chrome, Edge, or Safari</li>
-            <li>• Enable microphone permissions</li>
-            <li>• Use HTTPS connection</li>
-            <li>• Update your browser to the latest version</li>
-          </ul>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">
-              Speech to Text Converter
-            </h1>
-            <p className="text-gray-600">
-              Click the microphone button and start speaking
-            </p>
-          </div>
+    <div className="space-y-4">
+      <div className="flex gap-4">
+        <button
+          onClick={toggleListening}
+          disabled={disabled}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+            isListening
+              ? 'bg-gradient-to-r from-red-500 to-red-600 animate-pulse'
+              : 'bg-gradient-to-r from-red-400 to-teal-400 hover:scale-105'
+          }`}
+        >
+          {isListening ? (
+            <>
+              <Square className="w-5 h-5" />
+              <span>Stop Recording</span>
+            </>
+          ) : (
+            <>
+              <Mic className="w-5 h-5" />
+              <span>Start Recording</span>
+            </>
+          )}
+        </button>
+        <button
+          onClick={clearTranscript}
+          className="flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-gray-400 to-gray-500 text-white font-medium hover:scale-105 transition-all duration-300"
+        >
+          <RotateCcw className="w-5 h-5" />
+          Clear
+        </button>
+      </div>
 
-          {/* Status Indicator */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div className="flex items-center justify-center space-x-4">
-              <div className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all ${
-                isListening 
-                  ? 'bg-green-100 text-green-800 animate-pulse' 
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {isListening ? (
-                  <>
-                    <Mic className="w-5 h-5" />
-                    <span className="font-medium">Listening...</span>
-                  </>
-                ) : (
-                  <>
-                    <MicOff className="w-5 h-5" />
-                    <span>Microphone off</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Error Display */}
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 text-sm flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                  {error}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Controls */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={toggleListening}
-                disabled={!isSupported}
-                className={`px-8 py-3 rounded-lg font-medium flex items-center space-x-2 transition-all transform hover:scale-105 ${
-                  isListening
-                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
-                } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
-              >
-                {isListening ? (
-                  <>
-                    <Square className="w-5 h-5" />
-                    <span>Stop Recording</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-5 h-5" />
-                    <span>Start Recording</span>
-                  </>
-                )}
-              </button>
-              
-              <button
-                onClick={resetTranscript}
-                className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium flex items-center space-x-2 transition-all transform hover:scale-105"
-              >
-                <RotateCcw className="w-5 h-5" />
-                <span>Clear</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Transcript Display */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Transcription
-              </h2>
-              {transcript && (
-                <button
-                  onClick={copyToClipboard}
-                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm transition-colors"
-                >
-                  Copy Text
-                </button>
-              )}
-            </div>
-            
-            <div className="min-h-[250px] p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              {transcript || interimTranscript ? (
-                <div className="text-gray-800 leading-relaxed text-lg">
-                  <span className="font-medium">{transcript}</span>
-                  {interimTranscript && (
-                    <span className="text-blue-600 italic bg-blue-50 px-1 rounded">
-                      {interimTranscript}
-                    </span>
-                  )}
-                  {isListening && !interimTranscript && (
-                    <span className="text-gray-400 animate-pulse">●</span>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-400 italic text-center text-lg">
-                    {isListening 
-                      ? 'Listening... Start speaking now!' 
-                      : 'Click "Start Recording" and begin speaking...'
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            {/* Statistics */}
-            {transcript && (
-              <div className="mt-4 flex space-x-4 text-sm text-gray-500">
-                <span>Words: {transcript.trim().split(/\s+/).filter(word => word.length > 0).length}</span>
-                <span>Characters: {transcript.length}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="font-semibold text-blue-800 mb-3">
-              💡 Tips for Better Speech Recognition:
-            </h3>
-            <div className="grid md:grid-cols-2 gap-4">
-              <ul className="text-blue-700 text-sm space-y-2">
-                <li>• Speak clearly and at a moderate pace</li>
-                <li>• Use a quiet environment</li>
-                <li>• Position microphone 6-12 inches away</li>
-                <li>• Avoid background noise</li>
-              </ul>
-              <ul className="text-blue-700 text-sm space-y-2">
-                <li>• Ensure stable internet connection</li>
-                <li>• Allow microphone permissions</li>
-                <li>• Use Chrome/Edge for best results</li>
-                <li>• Speak in complete sentences</li>
-              </ul>
-            </div>
-          </div>
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700 text-sm flex items-center">
+            <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+            {error}
+          </p>
         </div>
+      )}
+
+      <div className={`p-4 rounded-lg min-h-16 flex items-center transition-all duration-300 ${
+        value || interimTranscript 
+          ? 'bg-white border-2 border-green-400 text-gray-800' 
+          : 'bg-purple-50 border-2 border-dashed border-purple-300 text-gray-500 justify-center'
+      }`}>
+        {value || interimTranscript || placeholder}
+        {interimTranscript && (
+          <span className="text-blue-600 italic bg-blue-50 px-1 rounded ml-2">
+            {interimTranscript}
+          </span>
+        )}
+        {isListening && !interimTranscript && !value && (
+          <span className="text-gray-400 animate-pulse ml-2">●</span>
+        )}
       </div>
     </div>
   );
 };
-
-export default App;
