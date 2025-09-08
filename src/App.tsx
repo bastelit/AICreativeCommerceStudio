@@ -561,33 +561,51 @@ const handleBrandSkip = async () => {
   // };
 
   // --- UI RENDER LOGIC ---
-  if (!showMainApp) {
-    // A more refined and animated landing page
-    return (
-      <div className="w-full min-h-screen bg-gray-900 text-white flex flex-col justify-center items-center p-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 opacity-80"></div>
-        {/* Animated background shapes for a modern feel */}
-        <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500 rounded-full opacity-20 filter blur-3xl animate-blob"></div>
-        <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500 rounded-full opacity-20 filter blur-3xl animate-blob animation-delay-4000"></div>
-        
-        <div className="relative z-10 text-center flex flex-col items-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
-            AI Creative Studio
-          </h1>
-          <p className="text-xl md:text-2xl mb-12 text-gray-300 max-w-2xl">
-            Transform your voice into commercially-ready designs. Powered by Nano Banana AI.
-          </p>
-          <button
-            onClick={() => setShowMainApp(true)}
-            className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-indigo-600 rounded-full overflow-hidden transition-all duration-300 ease-in-out hover:bg-indigo-700 hover:scale-105"
-          >
-            <span className="absolute left-0 w-full h-0 transition-all duration-300 ease-in-out bg-white opacity-10 group-hover:h-full"></span>
-            <span className="relative">🚀 Start Creating Now</span>
-          </button>
+  // REPLACE your existing landing page return statement (around line 380-410) with this updated version:
+
+if (!showMainApp) {
+  // A more refined and animated landing page
+  return (
+    <div className="w-full min-h-screen bg-gray-900 text-white flex flex-col justify-center items-center p-4 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 opacity-80"></div>
+      {/* Animated background shapes for a modern feel */}
+      <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500 rounded-full opacity-20 filter blur-3xl animate-blob"></div>
+      <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500 rounded-full opacity-20 filter blur-3xl animate-blob animation-delay-4000"></div>
+      
+      {/* Browser Compatibility Warning */}
+      <div className="fixed top-4 left-4 right-4 z-50">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-yellow-200/20 backdrop-blur-lg border border-yellow-400/30 rounded-xl p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-Blue-400 text-lg">💡</span>
+              <span className="text-Blue-300 font-semibold text-sm">Browser Compatibility Notice</span>
+            </div>
+            <p className="text-Blue-200 text-xs md:text-sm">
+              For the best voice recognition experience, please use <strong>Chrome, Safari, or Edge</strong>. 
+              Web Speech API may not work properly in Firefox or older browsers.
+            </p>
+          </div>
         </div>
       </div>
-    );
-  }
+      
+      <div className="relative z-10 text-center flex flex-col items-center">
+        <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+          AI Creative Studio
+        </h1>
+        <p className="text-xl md:text-2xl mb-12 text-gray-300 max-w-2xl">
+          Transform your voice into commercially-ready designs. Powered by Nano Banana AI.
+        </p>
+        <button
+          onClick={() => setShowMainApp(true)}
+          className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-indigo-600 rounded-full overflow-hidden transition-all duration-300 ease-in-out hover:bg-indigo-700 hover:scale-105"
+        >
+          <span className="absolute left-0 w-full h-0 transition-all duration-300 ease-in-out bg-white opacity-10 group-hover:h-full"></span>
+          <span className="relative">🚀 Start Creating Now</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
   // The main application UI, now cleaner and more professional
   return (
