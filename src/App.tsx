@@ -1,7 +1,3 @@
-// import { useState, useEffect } from 'react';
-// import { Mic, Square, RotateCcw, AlertCircle, Send } from 'lucide-react';
-// import { GoogleGenAI } from "@google/genai";
-// import { CREATIVE_DIRECTOR_PROMPT, NANO_BANANA_PROMPT } from './prompts.js';
 import { useState, useEffect } from 'react';
 import { Mic, Square, RotateCcw, AlertCircle, Send, Wand2, Bot, Palette, ShoppingCart, Download, Share2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
@@ -16,6 +12,25 @@ declare global {
   }
 }
 
+// Add these interfaces to your file
+
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: {
+    [key: number]: {
+      isFinal: boolean;
+      [key: number]: {
+        transcript: string;
+      };
+    };
+    length: number;
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
 
 // Define the types for your component's props
 type SpeechToTextInputProps = {
@@ -23,7 +38,7 @@ type SpeechToTextInputProps = {
   placeholder: string;
   value: string;
   onClear: () => void;
-  disabled?: boolean; // The '?' makes this prop optional
+  disabled?: boolean;
 };
 
 // --- SPEECH-TO-TEXT COMPONENT ---
@@ -216,11 +231,9 @@ const AiCreativeCommerceStudio = () => {
   const [progress, setProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(15);
   const [currentDesignUrl, setCurrentDesignUrl] = useState('');
-  const [designInfo, setDesignInfo] = useState({ style: '-', dimensions: '-', qualityScore: '-' });
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [loadingStep, setLoadingStep] = useState(1);
-  const [loadingMessage, setLoadingMessage] = useState('Initializing...'); // For better UX
+  const [loadingMessage, setLoadingMessage] = useState('Initializing...'); 
 
 
    useEffect(() => {
@@ -247,29 +260,23 @@ const AiCreativeCommerceStudio = () => {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  const showLoading = () => {
-    setIsLoading(true);
-    setProgress(0);
-    setTimeRemaining(15);
-    setLoadingStep(1);
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        const newProgress = prev + 6.67;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return newProgress;
-      });
-      setTimeRemaining(prev => Math.max(0, prev - 1));
-      setLoadingStep(prev => {
-        if (progress < 25) return 1;
-        if (progress < 50) return 2;
-        if (progress < 75) return 3;
-        return 4;
-      });
-    }, 1000);
-  };
+const showLoading = () => {
+  setIsLoading(true);
+  setProgress(0);
+  setTimeRemaining(15);
+  const interval = setInterval(() => {
+    setProgress(prev => {
+      const newProgress = prev + 6.67;
+      
+      if (newProgress >= 100) {
+        clearInterval(interval);
+        return 100;
+      }
+      return newProgress;
+    });
+    setTimeRemaining(prev => Math.max(0, prev - 1));
+  }, 1000);
+};
 
   // ADDED: New helper function for prompt enhancement
   const getEnhancedPrompt = async (rawIdea: string) => {
@@ -285,10 +292,10 @@ const AiCreativeCommerceStudio = () => {
       });
 
       // Correctly extract the text from the response structure
-      const enhancedPromptText = response.candidates[0].content.parts[0].text;
-      
+      const enhancedPromptText = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
       setEnhancedPrompt(enhancedPromptText);
-      return enhancedPromptText;
+      return enhancedPromptText || null;
 
     } catch (error) {
       console.error("Prompt enhancement failed:", error);
@@ -305,7 +312,6 @@ const AiCreativeCommerceStudio = () => {
       const { data, mimeType } = imagePart.inlineData;
       const imageUrl = `data:${mimeType};base64,${data}`;
       setCurrentDesignUrl(imageUrl);
-      setDesignInfo({ style: 'AI Generated', dimensions: 'Resolution from AI', qualityScore: 'N/A' });
     } else {
       console.error("API response did not contain image data:", response);
       throw new Error("No image data found in the API response. The model may have returned text instead.");
@@ -338,13 +344,6 @@ const generateDesign = async () => {
     setLoadingMessage('🎨 Generating your design with Nano Banana...');
     // Step 3: Combine with Nano Banana prompt
     const finalPromptForImageModel = NANO_BANANA_PROMPT(enhancedPromptText);
-    
-    
-    // let prompt = `Create a high-quality, commercial-ready design based on this idea: "${transcript}"`;
-    // if (enhanceTranscript) {
-    //   prompt += ` with these style preferences: "${enhanceTranscript}"`;
-    // }
-    // prompt += '. Make it suitable for print-on-demand products, especially t-shirts. Focus on clean, scalable vector-style artwork.';
     
     try {
       const ai = new GoogleGenAI({ apiKey:apiKey});
@@ -482,22 +481,68 @@ const generateDesign = async () => {
       <main className="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Left Panel: Inputs - Using a more spacious layout */}
         <div className="lg:col-span-3 space-y-8">
-          <Card title="Your Creative Idea" icon={<Wand2 />} step="1">
-            <SpeechToTextInput
-              onTranscriptChange={setTranscript}
-              placeholder='e.g., "A minimalist mountain logo for outdoor apparel"'
-              value={transcript}
-              onClear={() => setTranscript('')}
-            />
+          <Card title="Your Creative Idea" icon={<Wand2 />} step={1}>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
+                💡 <strong>Describe your design idea:</strong> What do you want to create? Be specific about the subject, style, colors, or mood. 
+                Example: "A minimalist mountain logo for outdoor apparel brand"
+              </p>
+              <div className="flex gap-2">
+                <SpeechToTextInput
+                  onTranscriptChange={setTranscript}
+                  placeholder='e.g., "A minimalist mountain logo for outdoor apparel"'
+                  value={transcript}
+                  onClear={() => setTranscript('')}
+                />
+              </div>
+              <div className="flex gap-2">
+                <textarea
+                  value={transcript}
+                  onChange={(e) => setTranscript(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && transcript.trim()) {
+                      e.preventDefault();
+                      generateDesign();
+                    }
+                  }}
+                  placeholder="Or type your design idea here... (Press Enter to generate)"
+                  className="flex-grow p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows={3}
+                />
+              </div>
+            </div>
           </Card>
 
-          <Card title="Style & Enhancement" icon={<Palette />} step="2">
-            <SpeechToTextInput
-              onTranscriptChange={setEnhanceTranscript}
-              placeholder='e.g., "Make it vintage style with earth tones"'
-              value={enhanceTranscript}
-              onClear={() => setEnhanceTranscript('')}
-            />
+          <Card title="Style & Enhancement" icon={<Palette />} step={2}>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 bg-green-50 p-3 rounded-lg border-l-4 border-green-400">
+                🎨 <strong>Add style preferences (Optional):</strong> Specify colors, art style, mood, or additional details to enhance your design.
+                Example: "Make it vintage style with earth tones and hand-drawn elements"
+              </p>
+              <div className="flex gap-2">
+                <SpeechToTextInput
+                  onTranscriptChange={setEnhanceTranscript}
+                  placeholder='e.g., "Make it vintage style with earth tones"'
+                  value={enhanceTranscript}
+                  onClear={() => setEnhanceTranscript('')}
+                />
+              </div>
+              <div className="flex gap-2">
+                <textarea
+                  value={enhanceTranscript}
+                  onChange={(e) => setEnhanceTranscript(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && transcript.trim()) {
+                      e.preventDefault();
+                      generateDesign();
+                    }
+                  }}
+                  placeholder="Or type style preferences here... (Press Enter to generate)"
+                  className="flex-grow p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows={2}
+                />
+              </div>
+            </div>
             <button
               onClick={generateDesign}
               disabled={!transcript || isLoading}
@@ -507,24 +552,60 @@ const generateDesign = async () => {
             </button>
           </Card>
 
-          <Card title="Iterate & Modify" icon={<Bot />} step="3">
-            <div className="flex justify-end mb-4">
-              <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-full">
-                <button onClick={() => setModificationMode('voice')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'voice' ? 'bg-white shadow' : ''}`}>Voice</button>
-                <button onClick={() => setModificationMode('text')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'text' ? 'bg-white shadow' : ''}`}>Text</button>
+          <Card title="Iterate & Modify" icon={<Bot />} step={3}>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 bg-purple-50 p-3 rounded-lg border-l-4 border-purple-400">
+                ✨ <strong>Modify your design:</strong> Ask for specific changes to improve your design. Be clear about what you want to change.
+                Example: "Make the logo bigger", "Change colors to blue and gold", "Add more details"
+              </p>
+              <div className="flex justify-end mb-4">
+                <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-full">
+                  <button onClick={() => setModificationMode('voice')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'voice' ? 'bg-white shadow' : ''}`}>Voice</button>
+                  <button onClick={() => setModificationMode('text')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'text' ? 'bg-white shadow' : ''}`}>Text</button>
+                </div>
               </div>
+              {modificationMode === 'voice' ? (
+                <>
+                  <SpeechToTextInput onTranscriptChange={setModifyInput} placeholder='e.g., "Make the sun bigger"' value={modifyInput} onClear={() => setModifyInput('')} disabled={!currentDesignUrl || isLoading} />
+                  <textarea
+                    value={modifyInput}
+                    onChange={(e) => setModifyInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey && modifyInput.trim() && currentDesignUrl) {
+                        e.preventDefault();
+                        applyModification();
+                      }
+                    }}
+                    placeholder="Or edit modifications here... (Press Enter to apply)"
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    rows={2}
+                    disabled={!currentDesignUrl || isLoading}
+                  />
+                  <button onClick={applyModification} disabled={!currentDesignUrl || isLoading || !modifyInput.trim()} className="w-full mt-4 py-3 bg-gray-800 text-white font-semibold rounded-full disabled:opacity-50">Apply Voice Modification</button>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <textarea
+                    value={modifyInput}
+                    onChange={(e) => setModifyInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey && modifyInput.trim() && currentDesignUrl) {
+                        e.preventDefault();
+                        applyModification();
+                      }
+                    }}
+                    placeholder="Type your changes... (Press Enter to apply)"
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    rows={3}
+                    disabled={!currentDesignUrl || isLoading}
+                  />
+                  <button onClick={applyModification} className="w-full py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50" disabled={!currentDesignUrl || isLoading || !modifyInput.trim()}>
+                    <Send className="inline w-4 h-4 mr-2" />
+                    Apply Modification
+                  </button>
+                </div>
+              )}
             </div>
-            {modificationMode === 'voice' ? (
-              <>
-                <SpeechToTextInput onTranscriptChange={setModifyInput} placeholder='e.g., "Make the sun bigger"' value={modifyInput} onClear={() => setModifyInput('')} disabled={!currentDesignUrl || isLoading} />
-                <button onClick={applyModification} disabled={!currentDesignUrl || isLoading || !modifyInput.trim()} className="w-full mt-4 py-3 bg-gray-800 text-white font-semibold rounded-full disabled:opacity-50">Apply Voice Modification</button>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                <input type="text" value={modifyInput} onChange={(e) => setModifyInput(e.target.value)} placeholder="Type your changes..." className="flex-grow p-3 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" disabled={!currentDesignUrl || isLoading} />
-                <button onClick={applyModification} className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50" disabled={!currentDesignUrl || isLoading || !modifyInput.trim()}><Send /></button>
-              </div>
-            )}
           </Card>
         </div>
 
@@ -533,11 +614,26 @@ const generateDesign = async () => {
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-xl font-bold mb-4 text-gray-800">Live Preview</h2>
             
-            {/* A more informative loading state */}
+            {/* Enhanced loading state with progress and time */}
             {isLoading && (
               <div className="text-center p-6 bg-indigo-50 rounded-xl mb-4">
                 <div className="text-4xl animate-spin mb-4">⚙️</div>
-                <h3 className="text-lg font-semibold text-indigo-800">{loadingMessage}</h3>
+                <h3 className="text-lg font-semibold text-indigo-800 mb-3">{loadingMessage}</h3>
+                
+                {/* Progress bar */}
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2 rounded-full transition-all duration-1000 ease-out"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                
+                {/* Progress info */}
+                <div className="flex justify-between text-sm text-indigo-600 mb-2">
+                  <span>{Math.round(progress)}% complete</span>
+                  <span>{timeRemaining}s remaining</span>
+                </div>
+                
                 <p className="text-sm text-indigo-600">Please wait a moment...</p>
               </div>
             )}
