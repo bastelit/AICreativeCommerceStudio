@@ -1,9 +1,14 @@
-import { useState } from 'react';
-import { Mic, Square, RotateCcw, AlertCircle, Send } from 'lucide-react';
+// import { useState, useEffect } from 'react';
+// import { Mic, Square, RotateCcw, AlertCircle, Send } from 'lucide-react';
+// import { GoogleGenAI } from "@google/genai";
+// import { CREATIVE_DIRECTOR_PROMPT, NANO_BANANA_PROMPT } from './prompts.js';
+import { useState, useEffect } from 'react';
+import { Mic, Square, RotateCcw, AlertCircle, Send, Wand2, Bot, Palette, ShoppingCart, Download, Share2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import { CREATIVE_DIRECTOR_PROMPT, NANO_BANANA_PROMPT } from './prompts.js';
+import Card from './components/Card.tsx';
 
 // --- TYPE DEFINITIONS ---
-// These are placed at the top level for clarity and to prevent redeclaration.
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -11,11 +16,21 @@ declare global {
   }
 }
 
+
+// Define the types for your component's props
+type SpeechToTextInputProps = {
+  onTranscriptChange: (transcript: string) => void;
+  placeholder: string;
+  value: string;
+  onClear: () => void;
+  disabled?: boolean; // The '?' makes this prop optional
+};
+
 // --- SPEECH-TO-TEXT COMPONENT ---
 // A reusable component for handling voice input.
-const SpeechToTextInput = ({ 
-  onTranscriptChange, 
-  placeholder, 
+const SpeechToTextInput: React.FC<SpeechToTextInputProps> = ({
+  onTranscriptChange,
+  placeholder,
   value,
   onClear,
   disabled = false
@@ -34,7 +49,7 @@ const SpeechToTextInput = ({
       recognitionInstance.interimResults = true;
       recognitionInstance.lang = 'en-US';
       
-      recognitionInstance.onresult = (event: any) => {
+      recognitionInstance.onresult = (event: SpeechRecognitionEvent ) => {
         let finalTranscript = '';
         let interim = '';
         
@@ -56,7 +71,7 @@ const SpeechToTextInput = ({
         setError('');
       };
       
-      recognitionInstance.onerror = (event: any) => {
+      recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent ) => {
         switch (event.error) {
           case 'no-speech':
             setError('No speech detected. Please try speaking again.');
@@ -186,13 +201,14 @@ const SpeechToTextInput = ({
 const AiCreativeCommerceStudio = () => {
   // --- STATE MANAGEMENT ---
   const [showMainApp, setShowMainApp] = useState(false);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(localStorage.getItem('geminiApiKey') || ''); 
   const [transcript, setTranscript] = useState('');
   const [enhanceTranscript, setEnhanceTranscript] = useState('');
+  const [enhancedPrompt, setEnhancedPrompt] = useState(''); 
   
   // -- Modification State --
-  const [modifyInput, setModifyInput] = useState(''); // Holds both text and voice input for modifications
-  const [modificationMode, setModificationMode] = useState('voice'); // 'voice' or 'text'
+  const [modifyInput, setModifyInput] = useState(''); 
+  const [modificationMode, setModificationMode] = useState('voice'); 
   const [chat, setChat] = useState<any>(null); // State for the conversational chat instance
   
   // -- Loading and UI State --
@@ -204,6 +220,14 @@ const AiCreativeCommerceStudio = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [loadingStep, setLoadingStep] = useState(1);
+  const [loadingMessage, setLoadingMessage] = useState('Initializing...'); // For better UX
+
+
+   useEffect(() => {
+    if (apiKey) {
+      localStorage.setItem('geminiApiKey', apiKey);
+    }
+  }, [apiKey]);
 
   // --- HELPER FUNCTIONS ---
   const validateApiKey = (key: string) => {
@@ -247,6 +271,32 @@ const AiCreativeCommerceStudio = () => {
     }, 1000);
   };
 
+  // ADDED: New helper function for prompt enhancement
+  const getEnhancedPrompt = async (rawIdea: string) => {
+    try {
+      const ai = new GoogleGenAI(
+        { apiKey: apiKey }
+      );
+
+      // CORRECTED METHOD: Use ai.models.generateContent for single text requests
+      const response = await ai.models.generateContent({
+        model: "gemini-1.5-flash", 
+        contents: [{ text: CREATIVE_DIRECTOR_PROMPT(rawIdea) }], 
+      });
+
+      // Correctly extract the text from the response structure
+      const enhancedPromptText = response.candidates[0].content.parts[0].text;
+      
+      setEnhancedPrompt(enhancedPromptText);
+      return enhancedPromptText;
+
+    } catch (error) {
+      console.error("Prompt enhancement failed:", error);
+      showError("Could not enhance the creative idea.");
+      return null;
+    }
+  };
+
   // --- API LOGIC ---
   const processApiResponse = (response: any) => {
     const imagePart = response.candidates && response.candidates[0]?.content?.parts?.find((part: any) => part.inlineData);
@@ -262,28 +312,49 @@ const AiCreativeCommerceStudio = () => {
     }
     setIsLoading(false);
   };
+
+
 const generateDesign = async () => {
     if (!apiKey || !transcript) {
       showError(!apiKey ? 'Please enter your Gemini API key first.' : 'Please provide your design idea first.');
       return;
     }
     showLoading();
-    
-    let prompt = `Create a high-quality, commercial-ready design based on this idea: "${transcript}"`;
+    setLoadingMessage('✨ Enhancing your creative idea...');
+
+    // Step 1: Combine user's ideas
+    let rawIdea = transcript;
     if (enhanceTranscript) {
-      prompt += ` with these style preferences: "${enhanceTranscript}"`;
+      rawIdea += ` with these style preferences: "${enhanceTranscript}"`;
     }
-    prompt += '. Make it suitable for print-on-demand products, especially t-shirts. Focus on clean, scalable vector-style artwork.';
+
+    // Step 2: Call the enhancement function
+    const enhancedPromptText = await getEnhancedPrompt(rawIdea);
+    
+    if (!enhancedPromptText) {
+      setIsLoading(false);
+      return;
+    }
+    setLoadingMessage('🎨 Generating your design with Nano Banana...');
+    // Step 3: Combine with Nano Banana prompt
+    const finalPromptForImageModel = NANO_BANANA_PROMPT(enhancedPromptText);
+    
+    
+    // let prompt = `Create a high-quality, commercial-ready design based on this idea: "${transcript}"`;
+    // if (enhanceTranscript) {
+    //   prompt += ` with these style preferences: "${enhanceTranscript}"`;
+    // }
+    // prompt += '. Make it suitable for print-on-demand products, especially t-shirts. Focus on clean, scalable vector-style artwork.';
     
     try {
-      const ai = new GoogleGenAI(apiKey);
+      const ai = new GoogleGenAI({ apiKey:apiKey});
       
       const newChat = ai.chats.create({ model: "gemini-2.5-flash-image-preview" });
       
       setChat(newChat);
 
-      // CORRECTED LINE: Wrap the prompt in the required array structure
-      const response = await newChat.sendMessage({ message: prompt });
+      
+      const response = await newChat.sendMessage({ message: finalPromptForImageModel });
       
       processApiResponse(response);
       
@@ -345,11 +416,11 @@ const generateDesign = async () => {
         if (brandName.trim()) {
             demoPrompt += ` The t-shirt should also feature the brand name "${brandName}" in a stylish, complementary font.`;
         } else {
-            const followupResponse = await chat.sendMessage("Based on our conversation and the design style, suggest a fitting brand name and concept.");
+            const followupResponse = await chat.sendMessage({ message: "Based on our conversation and the design style, suggest a fitting brand name and concept."});
             const suggestedBrand = followupResponse.response.text();
             demoPrompt += ` The t-shirt should represent a brand concept like this: ${suggestedBrand}.`;
         }
-        const response = await chat.sendMessage(demoPrompt);
+        const response = await chat.sendMessage({message : demoPrompt});
         processApiResponse(response);
         showSuccess("T-shirt mockup generated!");
     } catch(error) {
@@ -361,43 +432,46 @@ const generateDesign = async () => {
 
   // --- UI RENDER LOGIC ---
   if (!showMainApp) {
+    // A more refined and animated landing page
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center text-center text-white p-8 relative overflow-hidden bg-gradient-to-br from-purple-600 via-blue-600 to-purple-700">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full animate-pulse"></div>
-          <div className="absolute bottom-20 right-20 w-24 h-24 bg-yellow-300 rounded-full animate-bounce"></div>
-          <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-pink-300 rounded-full animate-ping"></div>
-        </div>
-        <div className="relative z-10">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent animate-pulse">
-            🎨 AI Creative Commerce Studio
+      <div className="w-full min-h-screen bg-gray-900 text-white flex flex-col justify-center items-center p-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 opacity-80"></div>
+        {/* Animated background shapes for a modern feel */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500 rounded-full opacity-20 filter blur-3xl animate-blob"></div>
+        <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500 rounded-full opacity-20 filter blur-3xl animate-blob animation-delay-4000"></div>
+        
+        <div className="relative z-10 text-center flex flex-col items-center">
+          <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+            AI Creative Studio
           </h1>
-          <p className="text-xl md:text-2xl mb-2 opacity-90">From Voice Ideas to Products</p>
-          <p className="text-lg md:text-xl mb-12 opacity-80">in 60 seconds</p>
-          <button 
+          <p className="text-xl md:text-2xl mb-12 text-gray-300 max-w-2xl">
+            Transform your voice into commercially-ready designs. Powered by Nano Banana AI.
+          </p>
+          <button
             onClick={() => setShowMainApp(true)}
-            className="bg-gradient-to-r from-red-500 to-teal-400 text-white px-8 py-4 text-xl rounded-full hover:scale-105 transform transition-all duration-300 shadow-2xl hover:shadow-3xl animate-bounce"
+            className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-indigo-600 rounded-full overflow-hidden transition-all duration-300 ease-in-out hover:bg-indigo-700 hover:scale-105"
           >
-            🎤 Start Creating Now
+            <span className="absolute left-0 w-full h-0 transition-all duration-300 ease-in-out bg-white opacity-10 group-hover:h-full"></span>
+            <span className="relative">🚀 Start Creating Now</span>
           </button>
-          <p className="absolute bottom-8 text-sm opacity-70">✨ Powered by Nano Banana AI</p>
         </div>
       </div>
     );
   }
 
+  // The main application UI, now cleaner and more professional
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 shadow-md sticky top-0 z-10">
-        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <h2 className="text-2xl font-bold">🎨 AI Creative Studio</h2>
-          <div className="flex items-center gap-2 bg-white bg-opacity-20 px-4 py-2 rounded-full backdrop-blur-md">
-            <span className="font-semibold">🔑 Gemini API Key:</span>
+    <div className="min-h-screen bg-gray-100 font-sans">
+      <header className="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-3 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            🎨 AI Creative Studio
+          </h1>
+          <div className="flex items-center gap-2">
             <input
               type="password"
-              className="bg-transparent text-white px-3 py-1 rounded-full border-none outline-none placeholder-white placeholder-opacity-70"
-              placeholder="Enter your API key"
+              className="px-4 py-2 text-sm border rounded-full focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              placeholder="Your Gemini API Key"
               value={apiKey}
               onChange={(e) => validateApiKey(e.target.value)}
             />
@@ -405,89 +479,98 @@ const generateDesign = async () => {
         </div>
       </header>
 
-      {/* Messages */}
-      <div className="container mx-auto px-6 pt-4">
-        {errorMessage && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-r-lg" role="alert">{errorMessage}</div>
-        )}
-        {successMessage && (
-          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded-r-lg" role="alert">{successMessage}</div>
-        )}
-      </div>
+      <main className="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
+        {/* Left Panel: Inputs - Using a more spacious layout */}
+        <div className="lg:col-span-3 space-y-8">
+          <Card title="Your Creative Idea" icon={<Wand2 />} step="1">
+            <SpeechToTextInput
+              onTranscriptChange={setTranscript}
+              placeholder='e.g., "A minimalist mountain logo for outdoor apparel"'
+              value={transcript}
+              onClear={() => setTranscript('')}
+            />
+          </Card>
 
-      {/* Main Content */}
-      <main className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 container mx-auto">
-        {/* Input Panel */}
-        <div className="bg-white rounded-3xl p-8 shadow-xl space-y-8">
-          <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-l-4 border-purple-500">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Step 1: 🎤 Voice Your Idea</h3>
-            <SpeechToTextInput onTranscriptChange={setTranscript} placeholder='e.g., "A minimalist mountain logo for outdoor apparel"' value={transcript} onClear={() => setTranscript('')} />
-          </div>
-
-          <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-l-4 border-purple-500">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Step 2: 🤖 AI Enhancement</h3>
-            <SpeechToTextInput onTranscriptChange={setEnhanceTranscript} placeholder='e.g., "Make it vintage style with earth tones"' value={enhanceTranscript} onClear={() => setEnhanceTranscript('')} />
-            <button onClick={generateDesign} disabled={!transcript || isLoading} className="w-full mt-4 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white text-lg font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-300">
+          <Card title="Style & Enhancement" icon={<Palette />} step="2">
+            <SpeechToTextInput
+              onTranscriptChange={setEnhanceTranscript}
+              placeholder='e.g., "Make it vintage style with earth tones"'
+              value={enhanceTranscript}
+              onClear={() => setEnhanceTranscript('')}
+            />
+            <button
+              onClick={generateDesign}
+              disabled={!transcript || isLoading}
+              className="w-full mt-6 px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               🍌 Generate with Nano Banana
             </button>
-          </div>
+          </Card>
 
-          <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-l-4 border-purple-500">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-gray-700">Step 3: 🔧 Modify Your Design</h3>
+          <Card title="Iterate & Modify" icon={<Bot />} step="3">
+            <div className="flex justify-end mb-4">
               <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-full">
-                <button onClick={() => setModificationMode('voice')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'voice' ? 'bg-white shadow' : 'bg-transparent'}`}>Voice</button>
-                <button onClick={() => setModificationMode('text')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'text' ? 'bg-white shadow' : 'bg-transparent'}`}>Text</button>
+                <button onClick={() => setModificationMode('voice')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'voice' ? 'bg-white shadow' : ''}`}>Voice</button>
+                <button onClick={() => setModificationMode('text')} className={`px-4 py-1 text-sm rounded-full transition-colors ${modificationMode === 'text' ? 'bg-white shadow' : ''}`}>Text</button>
               </div>
             </div>
             {modificationMode === 'voice' ? (
               <>
                 <SpeechToTextInput onTranscriptChange={setModifyInput} placeholder='e.g., "Make the sun bigger"' value={modifyInput} onClear={() => setModifyInput('')} disabled={!currentDesignUrl || isLoading} />
-                <button onClick={applyModification} disabled={!currentDesignUrl || isLoading || !modifyInput.trim()} className="w-full mt-4 px-8 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-full disabled:opacity-50">Apply Voice Modification</button>
+                <button onClick={applyModification} disabled={!currentDesignUrl || isLoading || !modifyInput.trim()} className="w-full mt-4 py-3 bg-gray-800 text-white font-semibold rounded-full disabled:opacity-50">Apply Voice Modification</button>
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <input type="text" value={modifyInput} onChange={(e) => setModifyInput(e.target.value)} placeholder="Type your changes..." className="flex-grow p-3 border-2 border-gray-300 rounded-full focus:outline-none focus:border-purple-500" disabled={!currentDesignUrl || isLoading} />
-                <button onClick={applyModification} className="p-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:opacity-50" disabled={!currentDesignUrl || isLoading || !modifyInput.trim()}><Send className="w-5 h-5" /></button>
+                <input type="text" value={modifyInput} onChange={(e) => setModifyInput(e.target.value)} placeholder="Type your changes..." className="flex-grow p-3 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500" disabled={!currentDesignUrl || isLoading} />
+                <button onClick={applyModification} className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50" disabled={!currentDesignUrl || isLoading || !modifyInput.trim()}><Send /></button>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Right Panel: Preview - Sticky for better context */}
+        <div className="lg:col-span-2 sticky top-24 h-fit">
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">Live Preview</h2>
+            
+            {/* A more informative loading state */}
+            {isLoading && (
+              <div className="text-center p-6 bg-indigo-50 rounded-xl mb-4">
+                <div className="text-4xl animate-spin mb-4">⚙️</div>
+                <h3 className="text-lg font-semibold text-indigo-800">{loadingMessage}</h3>
+                <p className="text-sm text-indigo-600">Please wait a moment...</p>
+              </div>
+            )}
+
+            {/* Notifications are now inside the right panel */}
+            {errorMessage && <div className="p-3 mb-4 bg-red-100 text-red-800 border-l-4 border-red-500 rounded-r-lg" role="alert">{errorMessage}</div>}
+            {successMessage && <div className="p-3 mb-4 bg-green-100 text-green-800 border-l-4 border-green-500 rounded-r-lg" role="alert">{successMessage}</div>}
+            {enhancedPrompt && !isLoading && <div className="p-3 mb-4 bg-gray-100 text-gray-800 border-l-4 border-gray-400 rounded-r-lg italic text-sm">{enhancedPrompt}</div>}
+            
+            <div className="w-full aspect-square rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-4">
+              {currentDesignUrl ? (
+                <img src={currentDesignUrl} alt="Generated Design" className="w-full h-full object-contain" />
+              ) : (
+                <div className="text-center text-gray-500">
+                  <Palette size={48} className="mx-auto mb-2" />
+                  <p>Your design will appear here</p>
+                </div>
+              )}
+            </div>
+            
+            {currentDesignUrl && !isLoading && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button onClick={regenerateDesign} className="flex-1 btn-secondary"><RotateCcw size={16} /> Regenerate</button>
+                  <button onClick={demoOnTshirt} className="flex-1 btn-secondary"><ShoppingCart size={16} /> T-Shirt Mockup</button>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button className="flex-1 btn-primary"><Download size={16} /> Download</button>
+                  <button className="flex-1 btn-primary"><Share2 size={16} /> Share</button>
+                </div>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Preview Panel */}
-        <div className="bg-white rounded-3xl p-8 shadow-xl sticky top-24 h-fit">
-          <h3 className="text-2xl font-bold mb-6 text-gray-800">🎨 Live Preview</h3>
-          {isLoading && (
-            <div className="text-center p-8 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl mb-6">
-              <div className="text-6xl mb-4 animate-bounce">🍌</div>
-              <h3 className="text-xl font-bold mb-4">Nano Banana Generating...</h3>
-              <div className="bg-gray-200 h-3 rounded-full mb-2 overflow-hidden"><div className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div></div>
-              <p className="mb-4">{Math.round(progress)}% Complete</p>
-              <div className="text-left space-y-2 mb-4 text-sm">
-                <p className={`transition-opacity duration-300 ${loadingStep >= 1 ? 'opacity-100' : 'opacity-40'}`}>✨ Analyzing vision...</p>
-                <p className={`transition-opacity duration-300 ${loadingStep >= 2 ? 'opacity-100' : 'opacity-40'}`}>🎨 Generating design...</p>
-                <p className={`transition-opacity duration-300 ${loadingStep >= 3 ? 'opacity-100' : 'opacity-40'}`}>🔧 Optimizing quality...</p>
-                <p className={`transition-opacity duration-300 ${loadingStep >= 4 ? 'opacity-100' : 'opacity-40'}`}>🎯 Finalizing...</p>
-              </div>
-              <p>ETA: <span className="font-bold">{timeRemaining}</span>s</p>
-            </div>
-          )}
-          <div className={`rounded-2xl min-h-[20rem] flex items-center justify-center mb-6 transition-all duration-300 ${currentDesignUrl ? 'bg-white shadow-lg' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300'}`}>
-            {currentDesignUrl ? (<img src={currentDesignUrl} alt="Generated Design" className="max-w-full max-h-96 rounded-lg shadow-md" />) : (<p className="text-gray-500">Your generated design will appear here</p>)}
-          </div>
-          {currentDesignUrl && !isLoading && (
-            <>
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                <p><strong>🎨 Style:</strong> <span>{designInfo.style}</span></p>
-                <p><strong>📐 Dimensions:</strong> <span>{designInfo.dimensions}</span></p>
-                <p><strong>🎯 Print Quality Score:</strong> <span>{designInfo.qualityScore}</span></p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button onClick={regenerateDesign} className="flex-1 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-full hover:scale-105 transition-transform duration-300">🔄 Regenerate</button>
-                <button onClick={demoOnTshirt} className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium rounded-full hover:scale-105 transition-transform duration-300">👕 Demo on T-shirt</button>
-              </div>
-            </>
-          )}
         </div>
       </main>
     </div>
