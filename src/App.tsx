@@ -212,6 +212,101 @@ const SpeechToTextInput: React.FC<SpeechToTextInputProps> = ({
 };
 
 
+// BRAND NAME POPUP COMPONENT 
+interface BrandPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (brandName: string) => void;
+  onSkip: () => void;
+}
+
+const BrandNamePopup: React.FC<BrandPopupProps> = ({ isOpen, onClose, onSubmit, onSkip }) => {
+  const [brandName, setBrandName] = useState('');
+
+  const handleSubmit = () => {
+    onSubmit(brandName.trim());
+    setBrandName('');
+    onClose();
+  };
+
+  const handleSkip = () => {
+    onSkip();
+    setBrandName('');
+    onClose();
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSubmit();
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in duration-300">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShoppingCart className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">T-Shirt Mockup</h2>
+          <p className="text-gray-600 text-sm">
+            Would you like to add your brand name to the t-shirt design?
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Brand Name (Optional)
+            </label>
+            <input
+              type="text"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Enter your brand name..."
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+              autoFocus
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Press Enter to confirm or Escape to cancel
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={handleSkip}
+              className="flex-1 px-4 py-3 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
+            >
+              Skip & Continue
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="flex-1 px-4 py-3 text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
+            >
+              Add Brand Name
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // --- MAIN AI STUDIO COMPONENT ---
 const AiCreativeCommerceStudio = () => {
   // --- STATE MANAGEMENT ---
@@ -220,6 +315,7 @@ const AiCreativeCommerceStudio = () => {
   const [transcript, setTranscript] = useState('');
   const [enhanceTranscript, setEnhanceTranscript] = useState('');
   const [enhancedPrompt, setEnhancedPrompt] = useState(''); 
+  const [showBrandPopup, setShowBrandPopup] = useState(false);
   
   // -- Modification State --
   const [modifyInput, setModifyInput] = useState(''); 
@@ -393,6 +489,34 @@ const generateDesign = async () => {
       showError('Failed to apply modification.');
     }
   };
+
+
+  const handleBrandSubmit = async (brandName: string) => {
+  showLoading();
+  
+  let demoPrompt = `Place the latest design on a realistic t-shirt mockup.`;
+
+  try {
+    if (brandName) {
+      demoPrompt += ` The t-shirt should also feature the brand name "${brandName}" in a stylish, complementary font.`;
+    } else {
+      demoPrompt += ` The t-shirt should feature a stylish, generic brand name that complements the design aesthetic.`;
+    }
+    
+    const response = await chat.sendMessage({ message: demoPrompt });
+    processApiResponse(response);
+    showSuccess("T-shirt mockup generated!");
+  } catch(error) {
+    console.error('T-shirt demo failed:', error);
+    setIsLoading(false);
+    showError('Could not generate the t-shirt mockup.');
+  }
+}
+
+const handleBrandSkip = async () => {
+  handleBrandSubmit(''); // Call with empty string to skip
+};
+
   const regenerateDesign = async () => {
     if (!chat) {
       showError('No design to regenerate.');
@@ -403,31 +527,38 @@ const generateDesign = async () => {
     setTimeout(() => applyModification(), 0);
   };
 
+
+
   const demoOnTshirt = async () => {
-    if (!chat) return;
-    const brandName = window.prompt("Please enter your brand name (leave blank for none):");
-    if (brandName === null) return; // User cancelled
-    showLoading();
-
-    let demoPrompt = `Place the latest design on a realistic t-shirt mockup.`;
-
-    try {
-        if (brandName.trim()) {
-            demoPrompt += ` The t-shirt should also feature the brand name "${brandName}" in a stylish, complementary font.`;
-        } else {
-            const followupResponse = await chat.sendMessage({ message: "Based on our conversation and the design style, suggest a fitting brand name and concept."});
-            const suggestedBrand = followupResponse.response.text();
-            demoPrompt += ` The t-shirt should represent a brand concept like this: ${suggestedBrand}.`;
-        }
-        const response = await chat.sendMessage({message : demoPrompt});
-        processApiResponse(response);
-        showSuccess("T-shirt mockup generated!");
-    } catch(error) {
-        console.error('T-shirt demo failed:', error);
-        setIsLoading(false);
-        showError('Could not generate the t-shirt mockup.');
-    }
+  if (!chat) return;
+  setShowBrandPopup(true);
   };
+
+  // const demoOnTshirt = async () => {
+  //   if (!chat) return;
+  //   const brandName = window.prompt("Please enter your brand name (leave blank for none):");
+  //   if (brandName === null) return; // User cancelled
+  //   showLoading();
+
+  //   let demoPrompt = `Place the latest design on a realistic t-shirt mockup.`;
+
+  //   try {
+  //       if (brandName.trim()) {
+  //           demoPrompt += ` The t-shirt should also feature the brand name "${brandName}" in a stylish, complementary font.`;
+  //       } else {
+  //           const followupResponse = await chat.sendMessage({ message: "Based on our conversation and the design style, suggest a fitting brand name and concept."});
+  //           const suggestedBrand = followupResponse.response.text();
+  //           demoPrompt += ` The t-shirt should represent a brand concept like this: ${suggestedBrand}.`;
+  //       }
+  //       const response = await chat.sendMessage({message : demoPrompt});
+  //       processApiResponse(response);
+  //       showSuccess("T-shirt mockup generated!");
+  //   } catch(error) {
+  //       console.error('T-shirt demo failed:', error);
+  //       setIsLoading(false);
+  //       showError('Could not generate the t-shirt mockup.');
+  //   }
+  // };
 
   // --- UI RENDER LOGIC ---
   if (!showMainApp) {
@@ -666,6 +797,15 @@ const generateDesign = async () => {
                 </div>
               </div>
             )}
+
+            {showBrandPopup && (
+  <BrandNamePopup
+    isOpen={showBrandPopup}
+    onClose={() => setShowBrandPopup(false)}
+    onSubmit={handleBrandSubmit}
+    onSkip={handleBrandSkip}
+  />
+)}
           </div>
         </div>
       </main>
