@@ -6,7 +6,7 @@
 
 ## 🚀 Live Demo
 
-[**Click here to view the live application**](https://ai-creative-commerce-studio-qxni.vercel.app/)
+[**Click here to view the live application**](https://ai-creative-commerce-studio.vercel.app/)
 
 ---
 
